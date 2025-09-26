@@ -2,9 +2,6 @@
 // Copyright 2025 Synaptics Incorporated
 
 #include "ShaderProgram.h"
-#include <cstring>
-#include <iomanip>
-#include <numeric>
 
 static void dumpInfoLog(char* infoLog)
 {
@@ -13,114 +10,48 @@ static void dumpInfoLog(char* infoLog)
     std::cout << "------------ Log End ------------" << std::endl;
 }
 
-ShaderProgram :: ShaderProgram(char* vertexShader, char* fragmentShader)
-            : vertexShader(vertexShader), fragmentShader(fragmentShader)
+ShaderProgram :: ShaderProgram()
+{
+
+}
+
+bool ShaderProgram :: initializeShader()
 {
     isShaderProgramReady = (createShaderProgram() < 0) ? false : true;
-}
-
-bool ShaderProgram :: getStatus()
-{
     return isShaderProgramReady;
-}
-
-bool ShaderProgram :: initializeShader(std::vector<LayoutItem>& compositorLayoutItems)
-{
-    createVertexShader();
-    createFragmentShader(compositorLayoutItems);
-    isShaderProgramReady = (createShaderProgram() < 0) ? false : true;
-    return isShaderProgramReady;
-}
-
-void ShaderProgram :: createVertexShader()
-{
-    std::stringstream vertexShaderCode;
-
-    vertexShaderCode << "#version 300 es\n";
-    vertexShaderCode << "in vec4 a_position;\n";
-    vertexShaderCode << "in vec2 a_texCoord;\n";
-    vertexShaderCode << "in vec3 a_alpha;\n";
-    vertexShaderCode << "out vec2 v_texCoord;\n";
-    vertexShaderCode << "out vec3 v_alpha;\n";
-    vertexShaderCode << "void main() \n{\n";
-    vertexShaderCode << "    gl_Position = a_position;\n";
-    vertexShaderCode << "    v_texCoord = a_texCoord;\n";
-    vertexShaderCode << "    v_alpha = a_alpha;\n";
-    vertexShaderCode << "}\n";
-
-    std::string vShader = vertexShaderCode.str();
-
-    vertexShader = new char[vShader.size() + 1];
-    std::strcpy(vertexShader, vShader.c_str());
-    vertexShader[vShader.size()] = '\0';
-
-#ifdef DEBUG_LOGS
-    std::cout << std::endl << "**** VERTEX SHADER ****" << std::endl;
-    std::cout << vertexShader << std::endl << std::endl;
-#endif
-}
-
-void ShaderProgram :: createFragmentShader(std::vector<LayoutItem>& compositorLayoutItems)
-{
-    GLuint numberOfComponents = compositorLayoutItems.size();
-    std::vector<std::string> fragmentShaderCode;
-
-    fragmentShaderCode.push_back("#version 300 es\n");
-    fragmentShaderCode.push_back("#extension GL_OES_EGL_image_external : require\n");
-    fragmentShaderCode.push_back("precision highp float;\n");
-    fragmentShaderCode.push_back("in vec2 v_texCoord;\n");
-
-    for (LayoutItem& layoutItem : compositorLayoutItems)
-    {
-        fragmentShaderCode.push_back("uniform samplerExternalOES u_texture_" + std::to_string(layoutItem.index) + ";\n");
-    }
-
-    fragmentShaderCode.push_back("out vec4 FragColor;\n");
-    fragmentShaderCode.push_back("void main() \n{\n");
-    fragmentShaderCode.push_back("    ");
-
-    for (LayoutItem& layoutItem : compositorLayoutItems)
-    {
-        std::ostringstream condition;
-        condition << std::fixed << std::setprecision(2);
-
-        condition << "if ((gl_FragCoord.x >= " << layoutItem.xPos
-                << " && gl_FragCoord.x < " << (layoutItem.xPos + layoutItem.width) << ")\n"
-                << "    && (gl_FragCoord.y >= " << layoutItem.yPos
-                << " && gl_FragCoord.y < " << (layoutItem.yPos + layoutItem.height) << "))\n"
-                << "    {\n"
-                << "        FragColor = texture2D(u_texture_" << layoutItem.index << ", v_texCoord);\n"
-                << "    }\n"
-                << "    else ";
-
-        fragmentShaderCode.push_back(condition.str());
-    }
-
-    fragmentShaderCode.push_back("\n"
-                                "    {\n"
-                                "        FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
-                                "    }\n");
-    fragmentShaderCode.push_back("}\n");
-
-    std::string fShader = std::accumulate(
-        fragmentShaderCode.begin(),
-        fragmentShaderCode.end(),
-        std::string{}
-    );
-
-    fragmentShader = new char[fShader.size() + 1];
-    std::strcpy(fragmentShader, fShader.c_str());
-    fragmentShader[fShader.size()] = '\0';
-
-#ifdef DEBUG_LOGS
-    std::cout << std::endl << "**** FRAGMENT SHADER ****" << std::endl;
-    std::cout << fragmentShader << std::endl << std::endl;
-#endif
 }
 
 GLint ShaderProgram :: compileShader(GLenum type, GLuint& shader)
 {
-    const char* shaderSource  = (type == GL_VERTEX_SHADER) ? vertexShader : fragmentShader;
+    const char* vertexShaderSrc = R"(
+        #version 300 es
+        precision mediump float;
+        layout(location = 0) in vec3 aPos;
+        layout(location = 1) in vec2 aTex;
+        uniform mat4 uMVP;
+        out vec2 vTex;
+
+        void main() {
+            gl_Position = uMVP * vec4(aPos, 1.0);
+            vTex = vec2(1.0 - aTex.x, 1.0 - aTex.y);
+        }
+    )";
+
+    const char* fragmentShaderSrc = R"(
+        #version 300 es
+        #extension GL_OES_EGL_image_external : require
+        precision mediump float;
+
+        uniform samplerExternalOES uTexture;
+        in vec2 vTex;
+        out vec4 fragColor;
+
+        void main() {
+            fragColor = texture2D(uTexture, vTex);
+        }
+    )";
+
+    const char* shaderSource  = (type == GL_VERTEX_SHADER) ? vertexShaderSrc : fragmentShaderSrc;
     shader = glCreateShader(type);
     glShaderSource(shader, 1, &shaderSource, NULL);
     glCompileShader(shader);
@@ -187,15 +118,32 @@ GLint ShaderProgram :: createShaderProgram()
         return -1;
     }
 
+#ifdef DEBUG_LOGS
+    std::cout << "----- Vertex Shader -----" << std::end;
+    std::cout << vertexShaderSrc << std::endl;
+    std::cout << "----- Fragment Shader -----" << std::end;
+    std::cout << fragmentShaderSrc << std::endl;
+#endif
+
     return 0;
 
 EXIT:
     return -1;
 }
 
+GLuint ShaderProgram :: getProgramID()
+{
+    return programID;
+}
+
 void ShaderProgram :: activate()
 {
     glUseProgram(programID);
+}
+
+void ShaderProgram :: deActivate()
+{
+    glUseProgram(0);
 }
 
 ShaderProgram :: ~ShaderProgram()

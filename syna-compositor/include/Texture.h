@@ -6,31 +6,36 @@
 
 #include "common.h"
 #include "ShaderProgram.h"
+#include <array>
 
 class Texture
 {
     public:
-        Texture(GLuint shaderProgramID, EGLImageKHR imageFD, GLenum textureSlot, GLuint textureIndex, const char* textureUniformName);
-        Texture(GLenum textureSlot, GLuint textureIndex, const char* textureUniformName);
+        Texture(GLenum textureSlot, LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight);
         ~Texture();
-        void bind();
-        void unBind();
         void activate();
-        void updateTextureUniform();
-        void activateForRendering();
+        void deActivate();
         GLuint getTextureID();
+        void setTextureUniforms();
+        void updateUniformLocations(GLuint& textureLocation, GLuint& mvpLocation);
         void setTextureImage(EGLImageKHR& textureImage);
-        void setTextureUniformLocation(GLuint& textureUniformLocation);
-        bool isVisible;
-        bool isEnabled;
+        void setActive(bool isActive);
+        bool isActive();
 
     private:
         GLuint textureID;
         GLuint textureType;
-        GLenum textureSlot;
-        GLuint textureLocation;
         GLuint textureIndex;
-        const char* textureUniformName;
+        GLenum textureSlot;
+        GLuint mvpLocation;
+        GLuint textureLocation;
+        bool active;
+        std::array<float, 16> mvpMatrix;
+
+        void matrixMultiply(std::array<GLfloat, 16>& out,
+            const std::array<GLfloat, 16>& a,
+            const std::array<GLfloat, 16>& b);
+        void generateMVPMatrix(LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight);
 };
 
 #endif /* TEXTURE_H */

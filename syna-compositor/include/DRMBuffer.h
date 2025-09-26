@@ -5,30 +5,35 @@
 #define DRM_BUFFER_H
 
 #include "common.h"
+#include "GBMManager.h"
+
+typedef struct {
+    struct gbm_bo *gbmBufferObject;
+    int fd;
+    int size;
+    int width;
+    int height;
+    void* virtualAddress;
+} SharedPlane;
 
 class DRMBuffer
 {
     public:
-        DRMBuffer();
+        explicit DRMBuffer(GBMManagerPtr gbmManager);
         ~DRMBuffer();
 
-        int getSharedFD()
-        {
-            return sharedFD;
-        }
-        void* getVirtualAddress()
-        {
-            return virtualAddress;
-        }
-        int createBuffer(struct gbm_device *gbmDevice, int width, int height, int pixelFormat);
-        int freeBuffer();
+        const std::array<SharedPlane, GBM_MAX_PLANES>& getSharedPlanes() const;
+        uint getNumPlanes() const;
+        int createBuffer(int width, int height, PixelFormat pFormat);
 
     private:
-        void* virtualAddress;
+        GBMManagerPtr gbmManager;
+
         uint bufferSize;
-        void* physicalAddress;
-        int sharedFD;
-        struct gbm_bo *gbmBufferObject;
+        uint nPlanes;
+        std::array<SharedPlane, GBM_MAX_PLANES> sharedPlanes;
+
+        void freeBuffer();
 };
 
 #endif /* DRM_BUFFER_H */

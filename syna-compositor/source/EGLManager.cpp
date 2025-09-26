@@ -3,18 +3,18 @@
 
 #include "EGLManager.h"
 
-EGLManager :: EGLManager()
+EGLManager :: EGLManager(GBMManagerPtr gbmManager)
 {
-
+    this->gbmManager = std::move(gbmManager);
+    initializeEGLFunctions();
+    initializeEGLDisplay();
 }
 
-int EGLManager :: initializeEGLDisplay(const char* devicePath)
+int EGLManager :: initializeEGLDisplay()
 {
     EGLConfig config;
     EGLint num_config;
     EGLint nativeVisualID, colorSpace;
-    drmFD = 0;
-    initializeEGLFunctions();
     EGLint attribs[] =
     {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
@@ -24,11 +24,7 @@ int EGLManager :: initializeEGLDisplay(const char* devicePath)
         EGL_BLUE_SIZE, 8,
         EGL_NONE
     };
-
-    if (initGBM(devicePath) < 0)
-        return -1;
-
-    display = eglGetDisplay((EGLNativeDisplayType)(gbmDevice));
+    display = eglGetDisplay((EGLNativeDisplayType)(gbmManager->getGBMDevice()));
     if ((display == EGL_NO_DISPLAY) && (eglGetError() != EGL_SUCCESS)) {
         std::cout << "Error : Failed to get EGL Display. (Error Code : " << eglGetError() << " )" << std::endl;
         return -1;
@@ -59,32 +55,6 @@ int EGLManager :: initializeEGLDisplay(const char* devicePath)
     return 0;
 }
 
-int EGLManager :: initGBM(const char* devicePath)
-{
-    if (!drmFD)
-    {
-        drmFD = open(devicePath, O_RDWR | FD_CLOEXEC);
-        if (drmFD < 0)
-        {
-            std::cout << "Error : Failed to open Card (" << devicePath << ")" << std::endl;
-            return -1;
-        }
-        else
-        {
-            drmDropMaster(drmFD);
-            gbmDevice = gbm_create_device(drmFD);
-            if (!gbmDevice)
-            {
-                std::cout << "Error: Failed to create GBM Device" << std::endl;
-                close(drmFD);
-                drmFD = 0;
-                return -1;
-            }
-        }
-    }
-    return 0;
-}
-
 void EGLManager :: initializeEGLFunctions()
 {
     pfneglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
@@ -105,24 +75,27 @@ void EGLManager :: initializeEGLFunctions()
         std::cout << "Error for pfnglEGLImageTargetRenderbufferStorageOES->eglGetProcAddress" << std::endl;
 }
 
-int EGLManager::createImageKHR(int sharedFD1, int sharedFD2, EGLImageKHR& image, int width, int height, PixelFormat pixelFormat)
+int EGLManager::createImageKHR(const std::array<int32_t, GBM_MAX_PLANES> sharedFDs, EGLImageKHR& image, int width, int height, PixelFormat pixelFormat, bool storeInMap)
 {
     EGLint* attributes;
 
-    auto foundImage = imageMap.find(sharedFD1);
-    if (foundImage != imageMap.end())
+    if (storeInMap)
     {
-        image = foundImage->second;
-        return 0;
+        auto foundImage = imageMap.find(sharedFDs[0]);
+        if (foundImage != imageMap.end())
+        {
+            image = foundImage->second;
+            return 0;
+        }
     }
-    attributes = new EGLint[20];
+    attributes = new EGLint[30];
     attributes[0] = EGL_WIDTH;
     attributes[1] = width;
     attributes[2] = EGL_HEIGHT;
     attributes[3] = height;
     attributes[4] = EGL_LINUX_DRM_FOURCC_EXT;
     attributes[6] = EGL_DMA_BUF_PLANE0_FD_EXT;
-    attributes[7] = sharedFD1;
+    attributes[7] = sharedFDs[0];
     attributes[8] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
     attributes[9] = 0;
     attributes[10] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
@@ -138,18 +111,18 @@ int EGLManager::createImageKHR(int sharedFD1, int sharedFD2, EGLImageKHR& image,
             attributes[5] = DRM_FORMAT_NV12;
             attributes[11] = width;
             attributes[12] = EGL_DMA_BUF_PLANE1_FD_EXT;
-            attributes[13] = sharedFD2;
+            attributes[13] = sharedFDs[0];
             attributes[14] = EGL_DMA_BUF_PLANE1_OFFSET_EXT;
-            attributes[15] = 0;
+            attributes[15] = (width * height);
             attributes[16] = EGL_DMA_BUF_PLANE1_PITCH_EXT;
             attributes[17] = width;
             attributes[18] = EGL_NONE;
             break;
         case NV12M:
-            attributes[5] = 0x3231564D;
+            attributes[5] = DRM_FORMAT_NV12;
             attributes[11] = width;
             attributes[12] = EGL_DMA_BUF_PLANE1_FD_EXT;
-            attributes[13] = sharedFD2;
+            attributes[13] = sharedFDs[1];
             attributes[14] = EGL_DMA_BUF_PLANE1_OFFSET_EXT;
             attributes[15] = 0;
             attributes[16] = EGL_DMA_BUF_PLANE1_PITCH_EXT;
@@ -160,6 +133,28 @@ int EGLManager::createImageKHR(int sharedFD1, int sharedFD2, EGLImageKHR& image,
             attributes[5] = DRM_FORMAT_YUYV;
             attributes[11] = (width * 2);
             attributes[12] = EGL_NONE;
+            break;
+        case UYVY:
+            attributes[5] = DRM_FORMAT_UYVY;
+            attributes[11] = (width * 2);
+            attributes[12] = EGL_NONE;
+            break;
+        case I420:
+            attributes[5] = DRM_FORMAT_YUV420;
+            attributes[11] = width;
+            attributes[12] = EGL_DMA_BUF_PLANE1_FD_EXT;
+            attributes[13] = sharedFDs[1];
+            attributes[14] = EGL_DMA_BUF_PLANE1_OFFSET_EXT;
+            attributes[15] = 0;
+            attributes[16] = EGL_DMA_BUF_PLANE1_PITCH_EXT;
+            attributes[17] = (width / 2);
+            attributes[18] = EGL_DMA_BUF_PLANE2_FD_EXT;
+            attributes[19] = sharedFDs[2];
+            attributes[20] = EGL_DMA_BUF_PLANE2_OFFSET_EXT;
+            attributes[21] = 0;
+            attributes[22] = EGL_DMA_BUF_PLANE2_PITCH_EXT;
+            attributes[23] = (width / 2);
+            attributes[24] = EGL_NONE;
             break;
         default:
             break;
@@ -173,10 +168,10 @@ int EGLManager::createImageKHR(int sharedFD1, int sharedFD2, EGLImageKHR& image,
         return -1;
     }
 
-    std::map<GLint, EGLImageKHR> imageMapLocal;
-    imageMapLocal = imageMap;
-    imageMapLocal[sharedFD1] = image;
-    imageMap = imageMapLocal;
+    if (storeInMap)
+    {
+        imageMap[sharedFDs[0]] = image;
+    }
 
     delete[] attributes;
 
@@ -190,13 +185,22 @@ int EGLManager :: destroyImageKHR(EGLImageKHR& image)
     return 0;
 }
 
+EGLDisplay EGLManager :: getDisplay() const
+{
+    return display;
+}
+
+EGLContext EGLManager :: getContext() const
+{
+    return context;
+}
+
 EGLManager :: ~EGLManager()
 {
-    if (gbmDevice)
-        gbm_device_destroy(gbmDevice);
-    gbmDevice = nullptr;
+    for (auto& imagePair : imageMap)
+    {
+        destroyImageKHR(imagePair.second);
+    }
 
-    if (drmFD)
-        close(drmFD);
-    drmFD = 0;
+    imageMap.clear();
 }

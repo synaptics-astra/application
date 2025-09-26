@@ -9,7 +9,7 @@ drm_dep = dependency('libdrm', required: true)
 gbm_dep = dependency('gbm', required: true)
 
 # List of source files
-synacompositor_sources = files('source/EGLManager.cpp', 'source/DRMBuffer.cpp', 'source/BufferObject.cpp', 'source/ShaderProgram.cpp', 'source/Texture.cpp', 'source/SynaCompositor.cpp')
+synacompositor_sources = files('source/GBMManager.cpp', 'source/EGLManager.cpp', 'source/DRMBuffer.cpp', 'source/BufferObject.cpp', 'source/ShaderProgram.cpp', 'source/Texture.cpp', 'source/SynaCompositor.cpp')
 synacompositor_includes = include_directories('include')
 
 synacompositor_lib = shared_library('synacompositor',

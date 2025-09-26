@@ -15,14 +15,13 @@
 #include <drm_fourcc.h>
 #include <iostream>
 #include <vector>
-#include <map>
-#include <sstream>
-#include <string>
 #include <initializer_list>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <gbm.h>
+#include <memory>
+#include <array>
 
 extern "C" {
     #include <drm/drm.h>
@@ -32,19 +31,30 @@ extern "C" int drmPrimeHandleToFD(int fd, uint32_t handle, uint32_t flags, int *
 extern "C" int drmDropMaster(int fd);
 
 // #define DEBUG_LOGS
+#define MAX_DRI_CARD 16
+
+enum PixelFormat
+{
+    ARGB,
+    BGRA,
+    NV12,
+    NV12M,
+    YUY2,
+    UYVY,
+    I420
+};
 
 struct LayoutItem
 {
-    GLint index;
+    GLuint index;
     GLfloat xPos;
     GLfloat yPos;
     GLfloat zPos;
     GLfloat width;
     GLfloat height;
-    GLfloat alpha;
 
-    LayoutItem(GLint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat h, GLfloat a)
-        : index(index), xPos(x), yPos(y), zPos(z), width(w), height(h), alpha(a) {}
+    LayoutItem(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat h)
+        : index(index), xPos(x), yPos(y), zPos(z), width(w), height(h) {}
 };
 
 extern PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pfnglEGLImageTargetTexture2DOES_temp;

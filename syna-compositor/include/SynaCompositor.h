@@ -10,6 +10,16 @@
 #include "Texture.h"
 #include "DRMBuffer.h"
 #include "EGLManager.h"
+#include "GBMManager.h"
+#include <unordered_map>
+
+typedef struct
+{
+    GLfloat b;
+    GLfloat g;
+    GLfloat r;
+    GLfloat a;
+} Color;
 
 class SynaCompositor
 {
@@ -22,20 +32,23 @@ class SynaCompositor
         void initializeCompositor();
         void setTextureImage(GLuint textureIndex, EGLImageKHR& image);
         void setOutputTextureImage(EGLImageKHR& image);
+        void compositeFrame();
         void startRendering();
         void stopRendering();
+        void setActive(GLuint textureIndex, bool isActive);
+        void setBackgroundColor(GLuint color);
 
     private:
         ShaderProgram* shaderProgram;
         BufferObject* bufferObject;
         Texture* outputTexture;
-        std::map<GLint,Texture> textureMap;
+        std::unordered_map<GLuint,Texture> textureMap;
         std::vector<LayoutItem> compositorLayoutItems;
-        std::vector<Vertex> vertices;
-        std::vector<GLuint> indices;
         bool isRenderingActive;
         GLfloat screenWidth, screenHeight;
         GLuint frameBuffer;
+        GLuint renderBuffer;
+        Color backgroundColor;
 
         void createShader();
         void createTextures();
@@ -44,6 +57,7 @@ class SynaCompositor
         void createFrameBuffer();
         void createOutputTexture();
         void setFrameBufferTexture();
+        void deleteFrameBuffer();
 };
 
 #endif /* SYNA_COMPOSITOR_H */

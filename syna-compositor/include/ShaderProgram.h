@@ -9,23 +9,16 @@
 class ShaderProgram
 {
     public:
-        ShaderProgram(char* vertexShader, char* fragmentShader);
-        ShaderProgram() {};
+        ShaderProgram();
         ~ShaderProgram();
         void activate();
-        bool getStatus();
-        bool initializeShader(std::vector<LayoutItem>& compositorLayoutItems);
-        GLuint getProgramID() {
-            return this->programID;
-        }
+        void deActivate();
+        bool initializeShader();
+        GLuint getProgramID();
 
     private:
         GLuint programID;
         bool isShaderProgramReady;
-        char* vertexShader;
-        char* fragmentShader;
-        void createVertexShader();
-        void createFragmentShader(std::vector<LayoutItem>& compositorLayoutItems);
         GLint compileShader(GLenum type, GLuint& shader);
         GLint createShaderProgram();
 };
