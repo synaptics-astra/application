@@ -11,7 +11,7 @@
 class Texture
 {
     public:
-        Texture(GLenum textureSlot, LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight);
+        Texture(GLenum textureSlot, LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight, GLenum textureType);
         ~Texture();
         void activate();
         void deActivate();

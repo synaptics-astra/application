@@ -23,22 +23,33 @@ bool ShaderProgram :: initializeShader()
 
 GLint ShaderProgram :: compileShader(GLenum type, GLuint& shader)
 {
-    const char* vertexShaderSrc = R"(
-        #version 300 es
+    const char* vertexShaderSrc = R"(#version 300 es
         precision mediump float;
         layout(location = 0) in vec3 aPos;
         layout(location = 1) in vec2 aTex;
         uniform mat4 uMVP;
         out vec2 vTex;
-
         void main() {
             gl_Position = uMVP * vec4(aPos, 1.0);
             vTex = vec2(1.0 - aTex.x, 1.0 - aTex.y);
         }
     )";
 
-    const char* fragmentShaderSrc = R"(
-        #version 300 es
+#ifdef USE_MALI_GPU
+    const char* fragmentShaderSrc = R"(#version 300 es
+        #extension GL_OES_EGL_image_external_essl3 : require
+        precision mediump float;
+
+        uniform samplerExternalOES uTexture;
+        in vec2 vTex;
+        out vec4 fragColor;
+
+        void main() {
+            fragColor = texture(uTexture, vTex);
+        }
+    )";
+#else
+    const char* fragmentShaderSrc = R"(#version 300 es
         #extension GL_OES_EGL_image_external : require
         precision mediump float;
 
@@ -50,6 +61,7 @@ GLint ShaderProgram :: compileShader(GLenum type, GLuint& shader)
             fragColor = texture2D(uTexture, vTex);
         }
     )";
+#endif
 
     const char* shaderSource  = (type == GL_VERTEX_SHADER) ? vertexShaderSrc : fragmentShaderSrc;
     shader = glCreateShader(type);

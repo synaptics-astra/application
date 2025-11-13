@@ -24,7 +24,11 @@ int EGLManager :: initializeEGLDisplay()
         EGL_BLUE_SIZE, 8,
         EGL_NONE
     };
+#ifdef USE_MALI_GPU
+    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+#else
     display = eglGetDisplay((EGLNativeDisplayType)(gbmManager->getGBMDevice()));
+#endif
     if ((display == EGL_NO_DISPLAY) && (eglGetError() != EGL_SUCCESS)) {
         std::cout << "Error : Failed to get EGL Display. (Error Code : " << eglGetError() << " )" << std::endl;
         return -1;
