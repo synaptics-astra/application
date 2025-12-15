@@ -53,7 +53,7 @@ void SynaCompositor :: createTextures()
     GLuint textureLocation = glGetUniformLocation(shaderProgram->getProgramID(), "uTexture");
     for (LayoutItem& layoutItem : compositorLayoutItems)
     {
-        Texture texture((GL_TEXTURE0 + layoutItem.index), layoutItem, screenWidth, screenHeight);
+        Texture texture((GL_TEXTURE0 + layoutItem.index), layoutItem, screenWidth, screenHeight, GL_TEXTURE_EXTERNAL_OES);
         texture.updateUniformLocations(textureLocation, mvpLocation);
         textureMapLocal.insert(std::make_pair(layoutItem.index, std::move(texture)));
     }
@@ -71,7 +71,11 @@ void SynaCompositor :: createOutputTexture()
 {
     int textureIndex = textureMap.size();
     LayoutItem layoutItem(textureIndex, 0, 0, 0, screenWidth, screenHeight);
-    outputTexture = new Texture((GL_TEXTURE0 + textureIndex), layoutItem, screenWidth, screenHeight);
+    GLenum textureType = GL_TEXTURE_EXTERNAL_OES;
+#ifdef USE_MALI_GPU
+    textureType = GL_TEXTURE_2D;
+#endif
+    outputTexture = new Texture((GL_TEXTURE0 + textureIndex), layoutItem, screenWidth, screenHeight, textureType);
 }
 
 void SynaCompositor :: createFrameBuffer()
@@ -107,7 +111,11 @@ void SynaCompositor :: setFrameBufferTexture()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 
+#ifdef USE_MALI_GPU
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outputTexture->getTextureID(), 0);
+#else
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_EXTERNAL_OES, outputTexture->getTextureID(), 0);
+#endif
 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
 
@@ -219,4 +227,3 @@ SynaCompositor :: ~SynaCompositor()
     delete bufferObject;
     delete shaderProgram;
 }
-

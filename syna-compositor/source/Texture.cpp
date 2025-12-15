@@ -20,20 +20,13 @@ void printMatrix(const std::array<GLfloat, 16>& mvpMatrix, const char* message) 
 }
 #endif
 
-Texture :: Texture(GLenum textureSlot, LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight)
+Texture :: Texture(GLenum textureSlot, LayoutItem& layoutItem, GLfloat& screenWidth, GLfloat& screenHeight, GLenum textureType)
 {
     this->textureSlot = textureSlot;
-    this->textureType = GL_TEXTURE_EXTERNAL_OES;
+    this->textureType = textureType;
     this->textureIndex = layoutItem.index;
     this->active = true;
     generateMVPMatrix(layoutItem, screenWidth, screenHeight);
-    glGenTextures(1, &textureID);
-    activate();
-    glTexParameteri(textureType, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(textureType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(textureType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(textureType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    deActivate();
 }
 
 void Texture::matrixMultiply(std::array<GLfloat, 16>& out,
@@ -117,7 +110,15 @@ void Texture::generateMVPMatrix(LayoutItem& layoutItem, GLfloat& screenWidth, GL
 
 void Texture :: setTextureImage(EGLImageKHR& textureImage)
 {
+    if (textureID != 0) {
+       glDeleteTextures(1, &textureID);
+    }
+    glGenTextures(1, &textureID);
     activate();
+    glTexParameteri(textureType, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(textureType, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(textureType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(textureType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     pfnglEGLImageTargetTexture2DOES_temp(textureType, textureImage);
     deActivate();
 }
