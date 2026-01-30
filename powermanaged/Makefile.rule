@@ -1,0 +1,13 @@
+﻿%.d: %.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -MM -MF $(patsubst %.o,%.d,$@) $^
+
+%.o: %.c %.d
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+$(LIBNAME) : $(OBJS)
+	mkdir -p $(dir $(LIBNAME))
+	$(CC) -shared $(LDFLAGS) $(OBJS) -o $@
+
+$(EXE) : $(OBJS)
+	mkdir -p $(dir $(EXE))
+	$(CC) $(LDFLAGS) -o $@ $(OBJS)
