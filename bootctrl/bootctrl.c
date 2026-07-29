@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
 // Copyright 2024 Synaptics Incorporated
+// All rights reserved.
 
 #include <stdio.h>
 #include <string.h>
@@ -22,7 +22,7 @@
 #define MISC_BOOT_CONTROL_VERSION 2
 #define COMMAND_LINE_SIZE 2048
 
-static const char *misc_device = "/dev/mmcblk0p17";
+static const char *misc_device = "/dev/disk/by-partlabel/misc";
 static const size_t SYNA_SPACE_OFFSET_IN_MISC = 4 * 1024;
 static const int kActiveSlotPriority = 8;
 static const int kOtherSlotPriority = 3;
